@@ -1,0 +1,116 @@
+I.GRAFANA:
+1.Download and Install Grafana:
+	$ wget -q -O - https://packages.grafana.com/gpg.key | sudo apt-key add -
+	$ sudo add-apt-repository "deb https://packages.grafana.com/oss/deb stable main"
+	$ sudo apt update 
+	$ apt-cache policy grafana
+	$ sudo apt install grafana
+2.Start Grafana:
+	$ sudo systemctl start grafana-server
+	$ sudo systemctl status grafana-server
+	$ sudo systemctl enable grafana-server
+
+Check http://3.235.77.40:3000
+
+3.Import following Grafana Dashboard:
+	Node-Exporter : 1860
+        Nginx-Exporter :12708
+==================================================================================================
+II.PROMETHEUS:
+1.Download and Install Prometheus:
+	$ sudo apt update
+	$ wget https://github.com/prometheus/prometheus/releases/download/v2.31.1/prometheus-2.31.1.linux-amd64.tar.gz
+	$ tar -xzf prometheus-*.tar.gz
+	$ cd prometheus-2.31.1.linux-amd64
+	$ sudo mkdir -p /etc/prometheus
+	$ sudo mkdir -p /var/lib/prometheus
+	$ sudo mv prometheus promtool /usr/local/bin/
+	$ sudo mv consoles/ console_libraries/ /etc/prometheus/
+	$ sudo mv prometheus.yml /etc/prometheus/prometheus.yml
+	$ prometheus --version
+2.Configure System Group and User:
+	$ sudo groupadd --system prometheus
+	$ sudo useradd -s /sbin/nologin --system -g prometheus prometheus
+	$ sudo chown -R prometheus:prometheus /etc/prometheus/  /var/lib/prometheus/
+	$ sudo chmod -R 775 /etc/prometheus/ /var/lib/prometheus/
+3.Configure Systemd Service:
+	$ sudo nano /etc/systemd/system/prometheus.service
+4.Add the following lines to the file and save it:
+
+[Unit]
+Description=Prometheus
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=prometheus
+Group=prometheus
+Restart=always
+Type=simple
+ExecStart=/usr/local/bin/prometheus \
+    --config.file=/etc/prometheus/prometheus.yml \
+    --storage.tsdb.path=/var/lib/prometheus/ \
+    --web.console.templates=/etc/prometheus/consoles \
+    --web.console.libraries=/etc/prometheus/console_libraries \
+    --web.listen-address=0.0.0.0:9090
+
+[Install]
+WantedBy=multi-user.target
+
+5.Start Prometheus:
+$ sudo systemctl start prometheus
+$ sudo systemctl enable prometheus
+$ sudo systemctl status prometheus
+
+Check http://3.235.77.40:9090
+======================================================================================================
+III.NODE EXPORTER:
+1.Setup Node Exporter Binary:
+	$ wget https://github.com/prometheus/node_exporter/releases/download/v1.3.0/node_exporter-1.3.0.linux-amd64.tar.gz
+	$ tar -xvf node_exporter-1.3.0.linux-amd64.tar.gz
+	$ sudo mv node_exporter-1.3.0.linux-amd64/node_exporter /usr/local/bin/
+2.Configure System User:
+	$ sudo useradd -rs /bin/false node_exporter
+	$ sudo vi /etc/systemd/system/node_exporter.service
+3.Add the following service file content to the service file and save it.
+
+[Unit]
+Description=Node Exporter
+After=network.target
+
+[Service]
+User=node_exporter
+Group=node_exporter
+Type=simple
+ExecStart=/usr/local/bin/node_exporter
+
+[Install]
+WantedBy=multi-user.target
+
+4.Start Node Exporter:
+	$ sudo systemctl daemon-reload
+	$ sudo systemctl start node_exporter
+	$ sudo systemctl status node_exporter
+	$ sudo systemctl enable node_exporter
+
+5.Check http://3.235.77.40:9100/
+=================================================================================================
+#Refer Nginx.conf (Included module -http_stub_status_module)
+http://3.235.77.40:8080/nginx_status
+
+# Nginx prometheus exporter (convert the nginx metrics to a format that prometheus can read)
+
+$ wget https://github.com/nginxinc/nginx-prometheus-exporter/releases/download/v0.9.0/nginx-prometheus-exporter_0.9.0_linux_amd64.tar.gz
+$ tar -zxvf nginx-prometheus-exporter_0.9.0_linux_amd64.tar.gz
+$ ./nginx-prometheus-exporter -nginx.scrape-uri=http://localhost:8080/nginx_status
+$ nohup ./nginx-prometheus-exporter -nginx.scrape-uri=http://localhost:8080/nginx_status > nohup.out &
+
+Check http://3.235.77.40:9113
+====================================================================================================
+#Nginx vts module (virtual host status information)
+#After cloning from github, compile all the modules together
+
+git clone git://github.com/vozlt/nginx-module-vts.git
+
+Check http://3.235.77.40:8080/nginx_vts_status
+

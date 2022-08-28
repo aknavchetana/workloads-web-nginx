@@ -1,0 +1,50 @@
+#Nginx configuration file (etc/nginx/nginx.conf)
+#user  nobody;
+worker_processes  auto;
+
+events {
+    worker_connections  1024;
+}
+
+http {
+    include       mime.types;
+    default_type  application/octet-stream;
+    vhost_traffic_status_zone;
+    sendfile        on;
+    keepalive_timeout  65;
+ server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+
+    include snippets/self-signed.conf;
+    include snippets/ssl-params.conf;
+root   html;
+            index  index.html index.htm;
+    server_name ec2-3-235-77-40.compute-1.amazonaws.com;
+location / {
+root   html;
+            index  index.html index.htm;
+
+}
+}
+
+ server 
+  {
+         listen       80;
+         listen [::]:80;
+         server_name ec2-3-235-77-40.compute-1.amazonaws.com;        
+         return 302 https://$server_name$request_uri;
+   }
+ server 
+  {
+         listen 8080;
+         server_name ec2-3-235-77-40.compute-1.amazonaws.com;
+         location /nginx_vts_status {
+         vhost_traffic_status_display;
+         vhost_traffic_status_display_format html;
+   }
+ location /nginx_status {
+           stub_status;
+            }
+}
+}
